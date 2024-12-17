@@ -3,19 +3,23 @@ import time
 from collections import deque
 class Menu:
     def __init__(self) -> None:
-        self.Page = Page("No DATA")
+        self.page = Page(Node("No DATA"))
         self.currentPage = self.Page
-        self.display = DisplayOled()
-        self.keys = bytearray(8)
+        # self.display = DisplayOled()
+        self.keyboard = Keyboard()
+        self.keys_buf = bytearray(8)
     def display(self):
-        ...
+        self.currentPage.display()
     def moveDown(self):
-        ...
+        self.currentPage.display()
     def moveUp(self):
-        ...
+        self.currentPage.moveUp()
     def click(self):
-        ...
+        self.currentPage.click()
     def longClick(self):
+        ...
+class Keyboard:
+    def poll_event(self):
         ...
 
 class Page:
