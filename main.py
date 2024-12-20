@@ -11,12 +11,7 @@ oled_width = 128
 oled_height = 64
 oled = ssd1306.SSD1306_I2C(oled_width, oled_height, i2c)
 ''' menu initial '''
-indexPage = None # index page contain sevel tasks
-mainpage = FullPage(oled)   #creat Page
-mainpage.initPage(Node('Menu'),Node('Toast'),Node('Timer'))
-menu = Menu()
-menu.initMenu(mainpage)
-menu.display()
+
 now = time.ticks_ms()
 gc.collect()
 while True:
@@ -27,7 +22,7 @@ while True:
   fps = round(1000/time.ticks_diff(time.ticks_ms(),now),2)
   oled.text(str(fps)+' FPS',64,56)
   now = time.ticks_ms()
-  menu.display()
+  
   oled.show()
   '''----------------- key -------------------'''
   if keyUp.value()&keyDown.value()&keyDone.value() == 0:

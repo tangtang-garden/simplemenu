@@ -3,28 +3,71 @@ import time
 from collections import deque
 class Menu:
     def __init__(self) -> None:
-        self.page = Page(Node("No DATA"))
-        self.currentPage = self.Page
-        # self.display = DisplayOled()
+        self.page = None
+        self.display = Display()
+        self.frontView = View()
         self.keyboard = Keyboard()
-        self.keys_buf = bytearray(8)
-    def display(self):
-        self.currentPage.display()
-    def moveDown(self):
-        self.currentPage.display()
-    def moveUp(self):
-        self.currentPage.moveUp()
-    def click(self):
-        self.currentPage.click()
-    def longClick(self):
-        ...
+        self.keys = bytearray(16)
+        self.pages = {}
+    # def display(self):
+    #     self.currentPage.display()
+    # def moveDown(self):
+    #     self.currentPage.display()
+    # def moveUp(self):
+    #     self.currentPage.moveUp()
+    # def click(self):
+    #     self.currentPage.click()
+    # def longClick(self):
+    #     ...
+    def addPage(self,title):
+        newPage = Page(title)
+        self.pages[title] = newPage
+        self.page = newPage
+        return newPage
+    def appendNode(self,title,value=None):
+        if self.page is None:raise ValueError('page append is None !')
+        newNode = Node(title,value)
+        self.page.linkList.append(newNode)
+    def appendLeftNode(self,title,value=None):
+        if self.page is None:raise ValueError('page append is None !')
+        newNode = Node(title,value)
+        self.page.linkList.appendleft(newNode)
+    def clearNode(self):
+        self.page.linkList.clear()
+    def indexNode(self,node):
+        return self.page.linkList.index(node)
+    def insertNode(self,index,newnode):
+        self.page.linkList.insert(index,newnode)
+    def popNode(self):
+        node = self.page.linkList.pop()
+        return node
+    def popLeftNode(self):
+        node = self.page.linkList.popleft()
+        return node
+    def removeNode(self,node):
+        self.page.linkList.remove(node)
+    def reverseNode(self):
+        self.page.linkList.reverse()
+    def rotate(self,n=1):
+        self.page.linkList.rotate(n)
+    def printNode(self):
+        if len(self.page.linkList) < 1:
+            print('empty linkList')
+            return
+        for node in self.page.linkList:
+            print(node.title,end='|')
+        else:
+            print(f'linkLink length :{len(self.page.linkList)}')
+
 class Keyboard:
     def poll_event(self):
         ...
-
+class View:
+    ...
 class Page:
     length = 0
-    def __init__(self) -> None:
+    def __init__(self,title) -> None:
+        self.title = title
         self.x = 0
         self.y = 0
         self.width = 128
@@ -33,38 +76,7 @@ class Page:
         self.selected = 0
         self.offset = 0
         Page.length += 1
-    def appendNode(self,title,value=None):
-        newNode = Node(title,value)
-        self.linkList.append(newNode)
-    def appendLeftNode(self,title,value=None):
-        newNode = Node(title,value)
-        self.linkList.appendleft(newNode)
-    def clearNode(self):
-        self.linkList.clear()
-    def indexNode(self,node):
-        return self.linkList.index(node)
-    def insertNode(self,index,newnode):
-        self.linkList.insert(index,newnode)
-    def popNode(self):
-        node = self.linkList.pop()
-        return node
-    def popLeftNode(self):
-        node = self.linkList.popleft()
-        return node
-    def removeNode(self,node):
-        self.linkList.remove(node)
-    def reverseNode(self):
-        self.linkList.reverse()
-    def rotate(self,n=1):
-        self.linkList.rotate(n)
-    def printNode(self):
-        if len(self.linkList) < 1:
-            print('empty linkList')
-            return
-        for node in self.linkList:
-            print(node.title,end='|')
-        else:
-            print(f'linkLink length :{len(self.linkList)}')
+
 class Node:
     length = 0
     def __init__(self,title,value = None) -> None:
@@ -73,7 +85,8 @@ class Node:
         self.nextPag = None
         self.previousPage = None
         Node.length += 1
-class DisplayOled:
+
+class Display:
     ...
 
 class LinkList:
