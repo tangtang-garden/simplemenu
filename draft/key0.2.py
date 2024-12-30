@@ -18,29 +18,29 @@ class Key:
   def update(self):
     nowValue = self.pin.value()
     ''' start signal '''
-    if nowValue ^ self.currentState and not self.keyDown_start and not self.keyUp_start:
+    if nowValue ^ self.currentState:# and not self.keyDown_start and not self.keyUp_start:
       self.keyDown_start = not nowValue
       self.keyUp_start = nowValue
+    # else:
+    #   return
     ''' re ticks_ms timer '''
-    if self.debounce ^ nowValue :
-      self.debounce = nowValue
-      self.keyDown_start = False
-      self.keyUp_start = False
-      self.t0 = time.ticks_ms()
+    # if self.debounce ^ nowValue :
+    #   self.debounce = nowValue
+    #   # self.t0 = time.ticks_ms()
+    #   self.keyDown_start = False
+    #   self.keyUp_start = False
     ''' determine press '''
-    if self.keyDown_start and time.ticks_diff(time.ticks_ms(),self.t0) > 45 :
+    if self.keyDown_start:# and time.ticks_diff(time.ticks_ms(),self.t0) > 45 :
       # print(f"keyDown start determine area ->   ",end = '')
-      if nowValue == 0:
-        self.currentState = 0
-        self.isDown = True
-        # print("key isDown")
+      self.currentState = 0
+      self.isDown = True
+      print("key isDown")
       self.keyDown_start = False
-    if self.keyUp_start and time.ticks_diff(time.ticks_ms(),self.t0)>80:
+    if self.keyUp_start :#and time.ticks_diff(time.ticks_ms(),self.t0)>80:
       # print(f"keyUp start determine area ->   ",end = '')
-      if nowValue == 1:
-        self.currentState = 1
-        self.isDown = False
-        self.isPressed = True
-        # print("key isUp and isPressed")
+      self.currentState = 1
+      self.isDown = False
+      self.isPressed = True
+      print("key isUp and isPressed")
       self.keyUp_start = False
     time.sleep_ms(1)
