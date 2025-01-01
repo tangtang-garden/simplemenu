@@ -1,11 +1,12 @@
 # dataclass
 class Node:
     length = 0
-    def __init__(self,title,value = None,valueRange=()) -> None:
+    def __init__(self,title,value = None,attr = 0,valueRange=()) -> None:
         self.title = title
         self.backward = None
         self.value = value
         self.valueRange = valueRange
+        self.attr = attr
         Node.length += 1
 # dataclass
 class Page:
