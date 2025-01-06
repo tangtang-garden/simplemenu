@@ -1,73 +1,38 @@
-'''simplemenu wokwi esp32 oled'''
+'''simple menu wokwi esp32 oled'''
 import time
 from page import Page,Node
-
 class Menu:
-    DO_NOTHING  = const(0) 
-    JUMP_PAGE   = const(1)
-    ''' desc '''
+    '''constant'''
+    DO_NOTHING = const(0)
+    SWITCH_PAGE = const(1)
+    MODIFY_BOOL = const(2)
+    FRONTVIEW_MODIFY_NUM = const(3)
+    '''global'''
+    display_Buf = []
+    page_Table = {}
+    front_View_Length = 0
     def __init__(self) -> None:
-        self.currentPage = None         # background page
-        self.page_buf = []
-        self.pages={}
-        self.table={
-            0x0:self.OP_null,
-            0x1:self.OP_jumpPage,
-        }
-        # self.keyboard = Keyboard()
-        self.keys_buf = bytearray(16)
-    def test(self):
+        self.keypad = bytearray(16)
+    def init(self):
         newPage = self.addPage("index")
-        Menu.appendNode(newPage,Node("about",value = "about",attr = Menu.JUMP_PAGE))
-        Menu.appendNode(newPage,Node("configure"))
-        Menu.appendNode(newPage,Node("C"))
-        Menu.appendNode(newPage,Node("D"))
-        Menu.appendNode(newPage,Node("E"))
-        Menu.appendNode(newPage,Node("F"))
-        Menu.appendNode(newPage,Node("G"))
-        self.page_buf.append(OptionsPage)
+        self.appendNode(newPage,Node("About",value="about",attr=Menu.SWITCH_PAGE))
+        self.appendNode(newPage,Node("Configure"))
+        self.appendNode(newPage,Node("Game"))
+        self.appendNode(newPage,Node("other D"))
+        self.appendNode(newPage,Node("other E"))
+        self.appendNode(newPage,Node("other F"))
+        self.appendNode(newPage,Node("other G"))
+        Menu.display_Buf.append(OptionsPage(newPage))
         newPage = self.addPage("about")
-        Menu.appendNode(newPage,Node("about 1"))
-        Menu.appendNode(newPage,Node("about 1"))
-        Menu.appendNode(newPage,Node("about 1"))
-        Menu.appendNode(newPage,Node("about 1"))
-        Menu.appendNode(newPage,Node("about 1"))
-        self.currentPage = self.pages["index"]
-    # def update(self):
-    #     ...
-    def draw(self,oled):
-        for page in self.page_buf:
-            page.draw(oled,self.currentPage)
-    # def keypressed(self):
-    #     ...
+        self.appendNode(newPage,Node("bool",value = 0,attr=Menu.MODIFY_BOOL))
+        self.appendNode(newPage,Node("value",value=50,attr=Menu.FRONTVIEW_MODIFY_NUM,valueRange=(40,60)))
+        self.appendNode(newPage,Node("about 1"))
+        self.appendNode(newPage,Node("about 1"))
+        self.appendNode(newPage,Node("return"))
     def addPage(self,title):
-        self.currentPage = Page(title)
-        self.pages[title] = self.currentPage
-        return self.currentPage
-    # def removePage(self,title):
-    #     # del self.pages[title]
-    #     ...
-
-    def moveUp(self):
-        self.page_buf[-1].moveUp(self.currentPage)
-    def moveDown(self):
-        self.page_buf[-1].moveDown(self.currentPage)
-    def click(self):
-        self.page_buf[-1].click(self.currentPage)
-    # @classmethod
-    # def creatPage(cls,title):
-    #     return Page(title)
-
-    # def printNodes(self):
-    #     tempNode = self.currentPage.linkList.head
-    #     if tempNode == None:
-    #         print('empty linkList')
-    #         return None
-    #         # raise ValueError('无任何节点')
-    #     while tempNode:
-    #         print(tempNode.title)
-    #         tempNode = tempNode.backward
-    @staticmethod
+        newPage = Page(title)
+        Menu.page_Table[title] = newPage
+        return newPage
     def appendNode(page:Page,newNode:Node):
         linkList = page.linkList
         if linkList.head == None:
@@ -77,47 +42,56 @@ class Menu:
             linkList.tail.backward = newNode
             linkList.tail = newNode
         linkList.length += 1
-        return True
-    # def popNode(self):
-    #     linkList = self.currentPage.linkList
-    #     if linkList.length == 0:
-    #         return None
-    #     firstNode = linkList.head
-    #     secondNode = linkList.head
-    #     while firstNode.backward:
-    #         secondNode = firstNode
-    #         firstNode = firstNode.backward
-    #     linkList.tail = secondNode
-    #     linkList.tail.backward = None
-    #     linkList.length -= 1
-    #     if linkList.length == 0:
-    #         linkList.head = None
-    #         linkList.tail = None
-    #     return firstNode
-    # def appendLeftNode(self,newNode:Node):
-    #     linkList = self.currentPage.linkList
-    #     if linkList.head == None:
-    #         linkList.head = newNode
-    #         linkList.tail = newNode
-    #     else:
-    #         newNode.backward = linkList.head
-    #         linkList.head = newNode
-    #     linkList.length += 1
-    #     return True
-    # def popLeftNode(self):
-    #     linkList = self.currentPage.linkList
-    #     if linkList.length == 0:
-    #         return None
-    #     tempNode = linkList.head
-    #     linkList.head = linkList.head.backward
-    #     tempNode.backward = None
-    #     linkList.length -= 1
-    #     if linkList.length == 0:
-    #         linkList.tail = None
-    #     return tempNode
-    @staticmethod
-    def getNode(page:Page,index): # index from 0 ~ length-1
-        linkList = page.linkList
+        # return True     
+    def update(self):
+        ...
+    def draw(self,oled):
+        for item in Menu.display_Buf:
+            item.draw(oled)
+    def moveUp(self):
+        ...
+    def moveDown(self):
+        ...
+    def click(self):
+        ...
+class OptionsPage:
+    def __init__(self,page:Page) -> None:
+        self.page = page
+        self.node = None
+        self.OP_table={
+            0x0:self.OP_null,
+            0x1:self.OP_switchPage,
+            0x2:self.OP_modifyBool,
+            0x3:self.OP_frontViewModifyNum,
+        }
+    def draw(self,oled):
+        tempNode = self.getNode(self.page.offset)
+        for i in range(self.page.linkList.length):
+            if (i+1)*10 > self.page.height: # list out of range
+                break
+            oled.text(tempNode.title,self.page.x+10,self.page.y+i*10)
+            tempNode = tempNode.backward
+        oled.fill_rect(self.page.x,self.page.y+self.page.selected*10,7,7)
+    def moveUp(self):
+        if(self.page.offset + self.page.selected <= 0):
+            return
+        if self.page.selected <= 0 :
+            self.page.offset -= 1
+        else:
+            self.page.selected -= 1
+    def moveDown(self):
+        if (self.page.offset + self.page.selected >= self.page.linkList.length -1):
+            return
+        if (self.page.selected +2)*10 > self.page.height:
+            self.page.offset += 1
+        else:
+            self.page.selected += 1
+    def click(self):
+        index = self.page.offset+self.page.selected
+        self.node = self.getNode(index)
+        self.OP_table.get(self.node.attr)()
+    def getNode(self,index): # index from 0 ~ length-1
+        linkList = self.page.linkList
         if linkList.head == None:
             return None
         assert 0 <= index <= linkList.length-1,'out of range'
@@ -125,69 +99,39 @@ class Menu:
         for _ in range(index):
             tempNode = tempNode.backward
         return tempNode
-    # def setNode(self,index,value):  # setter value
-    #     tempNode = self.getNode(index)
-    #     if tempNode:
-    #         tempNode.value = value
-    #         return True
-    #     return False
-    # def clear(self):
-    #     while(self.currentPage.linkList.length > 0):
-    #         self.popLeftNode()    
     def OP_null(self):
+        pass
+    def OP_switchPage(self):
+        self.page = Menu.page_Table.get(self.node.value)
+    def OP_modifyBool(self):
+        self.node.value = not self.node.value
+    def OP_frontViewModifyNum(self):
+        Menu.display_Buf.append(FrontViewModifyNum(self.node))
+class FrontViewModifyNum:
+    def __init__(self,node:Node) -> None:
+        self.node = node
+        self.x = 7
+        self.y = 16
+        Menu.front_View_Length += 1        
+    def draw(self,oled):
+        X = self.x+self.step
+        Y = self.y+self.step
+        valueRange = self.node.valueRange
+        strip = 100//(valueRange[1] - valueRange[0])*(self.node.value - valueRange[0])
+        oled.fill_rect(X,Y,114,32,0)
+        oled.rect(X,Y,114,32)
+        oled.rect(X+5,Y+16,104,8)
+        oled.fill_rect(X+5+2,Y+16+2,strip,4)
+        oled.text(self.node.title[:5]+f"{self.node.value:>7}",16+8,24+8)
+    def moveDown(self):
         ...
-    def OP_jumpPage(self):
+    def moveUp(self):
         ...
-    # def OP_frontView(self):
-    #     ...
-# class Keyboard:
-#     def poll_event(self):
-#         ...
-class ModifyPage:
-    @staticmethod
-    def OP_frontView(oled,node:Node):
-        oled.fill_rect(16,24,96,32,0)
-        oled.rect(16,24,96,32)
-        oled.rect(16+8,40,96-16,8)
-        oled.fill_rect(16+8+2,42,round(0.76*node.value),4)
-        oled.text(node.title[:6]+' '+'...',16+8,24+8)
-class OptionsPage:
-    @staticmethod
-    def draw(oled,page:Page):
-        width = page.width
-        height = page.height
-        nodeX = page.x
-        nodeY = page.y
-        offset = page.offset
-        selected = page.selected
-        tempNode = Menu.getNode(page,offset)
-        for i in range(page.linkList.length):
-            if (i+1)*10 > height: # list out of range
-                break
-            oled.text(tempNode.title,nodeX+10,nodeY+i*10)
-            tempNode = tempNode.backward
-        oled.fill_rect(nodeX,nodeY+selected*10,7,7)
-    @staticmethod
-    def moveUp(page:Page):
-        if(page.offset + page.selected <= 0):
-            return
-        if page.selected <= 0 :
-            page.offset -= 1
-        else:
-            page.selected -= 1
-    @staticmethod
-    def moveDown(page:Page):
-        if (page.offset + page.selected >= page.linkList.length -1):
-            return
-        if (page.selected +2)*10 > page.height:
-            page.offset += 1
-        else:
-            page.selected += 1
-    @staticmethod
-    def click(page:Page):
-        index = page.offset+page.selected
-        tempNode = Menu.getNode(page,index)
-
+    def click(self):
+        ...
+    @property
+    def step(self):
+        return (Menu.front_View_Length - 1)*2 
 def timed_function(f,*args,**kwargs):
     name = str(f).split(' ')[1]
     def inner_func(*args,**kwargs):
@@ -197,4 +141,11 @@ def timed_function(f,*args,**kwargs):
         print('Function {} Time = {:6.3f}ms'.format(name,delta/1000))
         return result
     return inner_func
-    
+def boundary(value, incr, lower_bound, upper_bound):
+    return min(upper_bound, max(lower_bound, value + incr))
+def boundless(value, incr, lower_bound, upper_bound):
+    scope = upper_bound - lower_bound + 1
+    value = value + incr
+    if value < lower_bound:
+        value += scope * ((lower_bound - value) // scope + 1)
+    return lower_bound + (value - lower_bound) % scope
