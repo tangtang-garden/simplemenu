@@ -15,7 +15,7 @@ class Menu:
         self.keypad = bytearray(16)
     def init(self):
         newPage = self.addPage("index")
-        self.appendNode(newPage,Node("About",value="about",attr=Menu.SWITCH_PAGE))
+        self.appendNode(newPage,Node("About",value="about",nodeType=Node.PAGE,attr=Menu.SWITCH_PAGE))
         self.appendNode(newPage,Node("Configure"))
         self.appendNode(newPage,Node("Game"))
         self.appendNode(newPage,Node("other D"))
@@ -24,16 +24,16 @@ class Menu:
         self.appendNode(newPage,Node("other G"))
         Menu.display_Buf.append(OptionsPage(newPage))
         newPage = self.addPage("about")
-        self.appendNode(newPage,Node("bool",value = 0,attr=Menu.MODIFY_BOOL))
-        self.appendNode(newPage,Node("value",value=50,attr=Menu.MODIFY_NUM,valueRange=(40,60)))
-        self.appendNode(newPage,Node("about 1"))
+        self.appendNode(newPage,Node("bool",value = 0,nodeType=Node.BOOL,attr=Menu.MODIFY_BOOL))
+        self.appendNode(newPage,Node("value",value=50,nodeType=Node.NUM,attr=Menu.MODIFY_NUM,valueRange=(40,60)))
+        self.appendNode(newPage,Node("value2",value=66,nodeType=Node.NUM))
         self.appendNode(newPage,Node("about 1"))
         self.appendNode(newPage,Node("return"))
     def addPage(self,title):
         newPage = Page(title)
         Menu.page_Table[title] = newPage
         return newPage
-    def appendNode(page:Page,newNode:Node):
+    def appendNode(self,page:Page,newNode:Node):
         linkList = page.linkList
         if linkList.head == None:
             linkList.head = newNode
@@ -49,17 +49,16 @@ class Menu:
         for item in Menu.display_Buf:
             item.draw(oled)
     def moveUp(self):
-        ...
+        Menu.display_Buf[-1].moveUp()
     def moveDown(self):
-        ...
+        Menu.display_Buf[-1].moveDown()
     def click(self):
-        ...
+        Menu.display_Buf[-1].click()
     @classmethod
     def frontViewExit(cls):
         obj = cls.display_Buf.pop()
         cls.front_View_Length -= 1
         del obj
-
 class OptionsPage:
     def __init__(self,page:Page) -> None:
         self.page = page
@@ -70,14 +69,18 @@ class OptionsPage:
             0x2:self.OP_modifyBool,
             0x3:self.OP_frontViewModifyNum,
         }
+    def init(self,page:Page):
+        self.page = page
+        self.node = page.linkList.head
     def draw(self,oled):
         tempNode = self.getNode(self.page.offset)
         for i in range(self.page.linkList.length):
             if (i+1)*10 > self.page.height: # list out of range
                 break
-            oled.text(tempNode.title,self.page.x+10,self.page.y+i*10)
+            oled.text(tempNode.title ,self.page.x+10,self.page.y+i*10)
+            oled.text(f"{tempNode.desc:>5}",self.page.x+88,self.page.y+i*10)
             tempNode = tempNode.backward
-        oled.rect(self.page.x,self.page.y+self.page.selected*10,self.node.width,10)
+        oled.rect(self.page.x+8,self.page.y+self.page.selected*10,self.node.width,10)
     def moveUp(self):
         if(self.page.offset + self.page.selected <= 0):
             return
@@ -108,9 +111,10 @@ class OptionsPage:
     def OP_null(self):
         pass
     def OP_switchPage(self):
-        self.page = Menu.page_Table.get(self.node.value)
+        targetPage = Menu.page_Table.get(self.node.value)
+        self.init(targetPage)
     def OP_modifyBool(self):
-        self.node.value = boundless(self.node.value,1,self.node.valueRange)
+        self.node.value =  (self.node.value+1)%2 # boundless(self.node.value,1,self.node.valueRange)
     def OP_frontViewModifyNum(self):
         Menu.display_Buf.append(FrontViewModifyNum(self.node))
 class FV:
@@ -134,7 +138,7 @@ class FrontViewModifyNum(FV):
         oled.rect(X,Y,114,32)
         oled.rect(X+5,Y+16,104,8)
         oled.fill_rect(X+5+2,Y+16+2,strip,4)
-        oled.text(self.node.title[:5]+f"{self.node.value:>7}",16+8,24+8)
+        oled.text(self.node.title[:5]+f"{self.node.value:>7}",16+0,24-2)
     def moveDown(self):
         self.node.value = boundary(self.node.value,self.incr*(-1),self.node.valueRange)
     def moveUp(self):

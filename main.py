@@ -12,7 +12,7 @@ oled_height = 64
 oled = ssd1306.SSD1306_I2C(oled_width, oled_height, i2c)
 ''' menu initial '''
 menu = Menu()
-menu.test()
+menu.init()
 now = time.ticks_ms()
 gc.collect()
 while True:
