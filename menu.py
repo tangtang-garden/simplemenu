@@ -6,7 +6,7 @@ class Menu:
     DO_NOTHING = const(0)
     SWITCH_PAGE = const(1)
     MODIFY_BOOL = const(2)
-    FRONTVIEW_MODIFY_NUM = const(3)
+    MODIFY_NUM = const(3)
     '''global'''
     display_Buf = []
     page_Table = {}
@@ -25,7 +25,7 @@ class Menu:
         Menu.display_Buf.append(OptionsPage(newPage))
         newPage = self.addPage("about")
         self.appendNode(newPage,Node("bool",value = 0,attr=Menu.MODIFY_BOOL))
-        self.appendNode(newPage,Node("value",value=50,attr=Menu.FRONTVIEW_MODIFY_NUM,valueRange=(40,60)))
+        self.appendNode(newPage,Node("value",value=50,attr=Menu.MODIFY_NUM,valueRange=(40,60)))
         self.appendNode(newPage,Node("about 1"))
         self.appendNode(newPage,Node("about 1"))
         self.appendNode(newPage,Node("return"))
@@ -54,10 +54,16 @@ class Menu:
         ...
     def click(self):
         ...
+    @classmethod
+    def frontViewExit(cls):
+        obj = cls.display_Buf.pop()
+        cls.front_View_Length -= 1
+        del obj
+
 class OptionsPage:
     def __init__(self,page:Page) -> None:
         self.page = page
-        self.node = None
+        self.node = page.linkList.head
         self.OP_table={
             0x0:self.OP_null,
             0x1:self.OP_switchPage,
@@ -71,7 +77,7 @@ class OptionsPage:
                 break
             oled.text(tempNode.title,self.page.x+10,self.page.y+i*10)
             tempNode = tempNode.backward
-        oled.fill_rect(self.page.x,self.page.y+self.page.selected*10,7,7)
+        oled.rect(self.page.x,self.page.y+self.page.selected*10,self.node.width,10)
     def moveUp(self):
         if(self.page.offset + self.page.selected <= 0):
             return
@@ -79,6 +85,7 @@ class OptionsPage:
             self.page.offset -= 1
         else:
             self.page.selected -= 1
+        self.node = self.getNode(self.page.offset+self.page.selected)
     def moveDown(self):
         if (self.page.offset + self.page.selected >= self.page.linkList.length -1):
             return
@@ -86,9 +93,8 @@ class OptionsPage:
             self.page.offset += 1
         else:
             self.page.selected += 1
+        self.node = self.node.backward
     def click(self):
-        index = self.page.offset+self.page.selected
-        self.node = self.getNode(index)
         self.OP_table.get(self.node.attr)()
     def getNode(self,index): # index from 0 ~ length-1
         linkList = self.page.linkList
@@ -104,31 +110,35 @@ class OptionsPage:
     def OP_switchPage(self):
         self.page = Menu.page_Table.get(self.node.value)
     def OP_modifyBool(self):
-        self.node.value = not self.node.value
+        self.node.value = boundless(self.node.value,1,self.node.valueRange)
     def OP_frontViewModifyNum(self):
         Menu.display_Buf.append(FrontViewModifyNum(self.node))
-class FrontViewModifyNum:
+class FV:
+    '''use keyPad logic in update'''
+    def click(self):
+        Menu.frontViewExit()
+class FrontViewModifyNum(FV):
+    '''scale > 0.01 '''
     def __init__(self,node:Node) -> None:
         self.node = node
         self.x = 7
         self.y = 16
+        self.incr = 0.1 if isinstance(self.node.value,float) else 1
         Menu.front_View_Length += 1        
     def draw(self,oled):
         X = self.x+self.step
         Y = self.y+self.step
         valueRange = self.node.valueRange
-        strip = 100//(valueRange[1] - valueRange[0])*(self.node.value - valueRange[0])
+        strip = 100*(self.node.value - valueRange[0])//(valueRange[1] - valueRange[0]) # round
         oled.fill_rect(X,Y,114,32,0)
         oled.rect(X,Y,114,32)
         oled.rect(X+5,Y+16,104,8)
         oled.fill_rect(X+5+2,Y+16+2,strip,4)
         oled.text(self.node.title[:5]+f"{self.node.value:>7}",16+8,24+8)
     def moveDown(self):
-        ...
+        self.node.value = boundary(self.node.value,self.incr*(-1),self.node.valueRange)
     def moveUp(self):
-        ...
-    def click(self):
-        ...
+        self.node.value = boundary(self.node.value,self.incr*1,self.node.valueRange)
     @property
     def step(self):
         return (Menu.front_View_Length - 1)*2 
@@ -141,11 +151,17 @@ def timed_function(f,*args,**kwargs):
         print('Function {} Time = {:6.3f}ms'.format(name,delta/1000))
         return result
     return inner_func
-def boundary(value, incr, lower_bound, upper_bound):
+def boundary(value, incr, bound:tuple):
+    lower_bound = bound[0]
+    upper_bound = bound[1]
     return min(upper_bound, max(lower_bound, value + incr))
-def boundless(value, incr, lower_bound, upper_bound):
+def boundless(value, incr, bound:tuple):
+    lower_bound = bound[0]
+    upper_bound = bound[1]
     scope = upper_bound - lower_bound + 1
     value = value + incr
     if value < lower_bound:
         value += scope * ((lower_bound - value) // scope + 1)
     return lower_bound + (value - lower_bound) % scope
+def scale(x, in_min, in_max, out_min, out_max):
+    return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min

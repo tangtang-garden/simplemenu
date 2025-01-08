@@ -1,13 +1,18 @@
 # dataclass
 class Node:
     length = 0
-    def __init__(self,title,value = 0,attr = 0,valueRange=()) -> None:
+    def __init__(self,title,value = 0,attr = 0,valueRange=(),valueDesc = None,enable = 0) -> None:
         self.title = title
         self.backward = None
-        self.value = value
-        self.valueRange = valueRange
         self.attr = attr
+        self.value = value
+        self.valueRange = (0,1) if attr == 2 else valueRange
+        self.valueDesc = self.value if 
+        self.enable = enable
         Node.length += 1
+    @property
+    def width(self):
+        return len(self.title)
 # dataclass
 class Page:
     length = 0
