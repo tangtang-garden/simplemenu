@@ -1,11 +1,6 @@
 # dataclass
 class Node:
     length = 0
-    NULL = const(0)
-    PAGE = const(1)
-    BOOL = const(2)
-    NUM = const(3)
-    CHICO = const(4)
     def __init__(self,title,value = 0,incr = 1,nodeType = 0,attr = 0,valueRange=()) -> None:
         self.title = title
         self.backward = None
