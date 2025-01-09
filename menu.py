@@ -62,25 +62,30 @@ class Menu:
 class OptionsPage:
     def __init__(self,page:Page) -> None:
         self.page = page
-        self.node = page.linkList.head
+        self.node = None # page.linkList.head
         self.OP_table={
             0x0:self.OP_null,
             0x1:self.OP_switchPage,
             0x2:self.OP_modifyBool,
             0x3:self.OP_frontViewModifyNum,
         }
-    def init(self,page:Page):
-        self.page = page
-        self.node = page.linkList.head
+        self.OP_valueDesc={
+            0x0:self.DESC_null,
+            0x1:self.DESC_page,
+            0x2:self.DESC_bool,
+            0x3:self.DESC_num,
+            0x4:self.DESC_chico
+        }
     def draw(self,oled):
-        tempNode = self.getNode(self.page.offset)
+        self.node = self.getNode(self.page.offset)
         for i in range(self.page.linkList.length):
             if (i+1)*10 > self.page.height: # list out of range
                 break
-            oled.text(tempNode.title ,self.page.x+10,self.page.y+i*10)
-            oled.text(f"{tempNode.desc:>5}",self.page.x+88,self.page.y+i*10)
-            tempNode = tempNode.backward
-        oled.rect(self.page.x+8,self.page.y+self.page.selected*10,self.node.width,10)
+            oled.text(f"{self.nodeDesc():>8}",self.page.x+64,self.page.y+i*10)
+            oled.text(self.node.title ,self.page.x+10,self.page.y+i*10)
+            if i == self.page.selected:
+                oled.rect(self.page.x+8,self.page.y+self.page.selected*10,len(self.node.title)*9,10)
+            self.node = self.node.backward
     def moveUp(self):
         if(self.page.offset + self.page.selected <= 0):
             return
@@ -88,7 +93,6 @@ class OptionsPage:
             self.page.offset -= 1
         else:
             self.page.selected -= 1
-        self.node = self.getNode(self.page.offset+self.page.selected)
     def moveDown(self):
         if (self.page.offset + self.page.selected >= self.page.linkList.length -1):
             return
@@ -96,8 +100,8 @@ class OptionsPage:
             self.page.offset += 1
         else:
             self.page.selected += 1
-        self.node = self.node.backward
     def click(self):
+        self.node =self.getNode(self.page.offset+self.page.selected)
         self.OP_table.get(self.node.attr)()
     def getNode(self,index): # index from 0 ~ length-1
         linkList = self.page.linkList
@@ -111,12 +115,23 @@ class OptionsPage:
     def OP_null(self):
         pass
     def OP_switchPage(self):
-        targetPage = Menu.page_Table.get(self.node.value)
-        self.init(targetPage)
+        self.page = Menu.page_Table.get(self.node.value)
     def OP_modifyBool(self):
         self.node.value =  (self.node.value+1)%2 # boundless(self.node.value,1,self.node.valueRange)
     def OP_frontViewModifyNum(self):
         Menu.display_Buf.append(FrontViewModifyNum(self.node))
+    def nodeDesc(self):
+        self.OP_valueDesc[self.node.nodeType]()
+    def DESC_null(self):
+        return ' '
+    def DESC_page(self):
+        ...
+    def DESC_bool(self):
+        ...
+    def DESC_num(self):
+        ...
+    def DESC_chico(self):
+        ...
 class FV:
     '''use keyPad logic in update'''
     def click(self):
@@ -127,7 +142,7 @@ class FrontViewModifyNum(FV):
         self.node = node
         self.x = 7
         self.y = 16
-        self.incr = 0.1 if isinstance(self.node.value,float) else 1
+        self.incr = node.incr # 0.1 if isinstance(self.node.value,float) else 1
         Menu.front_View_Length += 1        
     def draw(self,oled):
         X = self.x+self.step
