@@ -5,30 +5,44 @@ class Menu:
     '''constant'''
     DO_NOTHING = const(0)
     SWITCH_PAGE = const(1)
-    MODIFY_BOOL = const(2)
-    MODIFY_NUM = const(3)
+    MODIFY_STR = const(2)
+    MODIFY_BOOL = const(3)
+    MODIFY_NUM_FV = const(4)
+    MODIFY_CHOICE_FV = const(5)
+    # SWITCH_PAGE_CM = const(6)
+    RETURN_PAGE = const(7)
     '''global'''
     display_Buf = []
     page_Table = {}
-    front_View_Length = 0
+    FV_num = 0
     def __init__(self) -> None:
         self.keypad = bytearray(16)
     def init(self):
-        newPage = self.addPage("index")
-        self.appendNode(newPage,Node("About",value="about",nodeType=Desc.PAGE,attr=Menu.SWITCH_PAGE))
-        self.appendNode(newPage,Node("Configure"))
-        self.appendNode(newPage,Node("Game"))
-        self.appendNode(newPage,Node("other D"))
-        self.appendNode(newPage,Node("other E"))
-        self.appendNode(newPage,Node("other F"))
-        self.appendNode(newPage,Node("other G"))
+        newPage = self.addPage("main")
+        self.appendNode(newPage,Node("[Menu]"))
+        self.appendNode(newPage,Node("-Configure",value="configure",nodeType=Desc.PAGE,attr=Menu.SWITCH_PAGE))
+        self.appendNode(newPage,Node("-Draw",value = "draw",nodeType=Desc.PAGE,attr=Menu.SWITCH_PAGE))
+        self.appendNode(newPage,Node("-Game",value = "game",nodeType=Desc.PAGE,attr=Menu.SWITCH_PAGE))
+        self.appendNode(newPage,Node("-other D"))
+        self.appendNode(newPage,Node("-other E"))
+        self.appendNode(newPage,Node("-other F"))
+        self.appendNode(newPage,Node("-other G"))
+        self.appendNode(newPage,Node("-About"))
         Menu.display_Buf.append(OptionsPage(newPage))
-        newPage = self.addPage("about")
-        self.appendNode(newPage,Node("bool",value = 0,nodeType=Desc.BOOL,attr=Menu.MODIFY_BOOL))
-        self.appendNode(newPage,Node("value",value=50,nodeType=Desc.NUM,attr=Menu.MODIFY_NUM,valueRange=(40,60)))
-        self.appendNode(newPage,Node("value2",value=66,nodeType=Desc.NUM))
-        self.appendNode(newPage,Node("about 1"))
-        self.appendNode(newPage,Node("return"))
+        newPage = self.addPage("configure")
+        self.appendNode(newPage,Node("[Configure]"))
+        self.appendNode(newPage,Node("-Name",value="elric",nodeType=Desc.STR,attr=Menu.MODIFY_STR))
+        self.appendNode(newPage,Node("-Boolean",nodeType=Desc.BOOL,attr=Menu.MODIFY_BOOL))
+        self.appendNode(newPage,Node("-Number",value=50,nodeType=Desc.NUM,attr=Menu.MODIFY_NUM_FV,valueRange=(40,60)))
+        self.appendNode(newPage,Node("-Float",value=0.5,nodeType=Desc.NUM,incr=0.1,attr=Menu.MODIFY_NUM_FV,valueRange=(0,1)))
+        self.appendNode(newPage,Node("-Choice",value=0,nodeType=Desc.CHOICE,attr=Menu.MODIFY_CHOICE_FV,valueRange=(0,2))) # boundless attention incr = 1 or-1...
+        self.appendNode(newPage,Node("-Return",value="main",attr=Menu.RETURN_PAGE))
+        newPage = self.addPage("draw")
+        self.appendNode(newPage,Node("[Draw]"))
+        self.appendNode(newPage,Node("-Return",value="main",attr=Menu.RETURN_PAGE))
+        newPage = self.addPage("game")
+        self.appendNode(newPage,Node("[Game]"))
+        self.appendNode(newPage,Node("-Return",value="main",attr=Menu.RETURN_PAGE))
     def addPage(self,title):
         newPage = Page(title)
         Menu.page_Table[title] = newPage
@@ -57,7 +71,7 @@ class Menu:
     @classmethod
     def frontViewExit(cls):
         obj = cls.display_Buf.pop()
-        cls.front_View_Length -= 1
+        cls.FV_num -= 1
         del obj
 class OptionsPage:
     def __init__(self,page:Page) -> None:
@@ -65,10 +79,13 @@ class OptionsPage:
         self.node = None # page.linkList.head
         self.desc = Desc()
         self.OP_table={
-            0x0:self.OP_null,
-            0x1:self.OP_switchPage,
-            0x2:self.OP_modifyBool,
-            0x3:self.OP_frontViewModifyNum,
+            Menu.DO_NOTHING:self.OP_null,
+            Menu.SWITCH_PAGE:self.OP_switchPage,
+            Menu.MODIFY_BOOL:self.OP_modifyBool,
+            Menu.MODIFY_NUM_FV:self.OP_modifyNumFV,
+            Menu.MODIFY_CHOICE_FV:self.OP_modifyChoiceFV,
+            Menu.MODIFY_STR:self.OP_modifyStrKB,
+            Menu.RETURN_PAGE:self.OP_returnPage,
         }
     def draw(self,oled):
         tempNode = self.getNode(self.page.offset)
@@ -77,9 +94,9 @@ class OptionsPage:
                 break
             nodeDesc = self.desc.nodeDesc(tempNode)
             oled.text(nodeDesc,self.page.x+64+(8-len(nodeDesc))*8,self.page.y+i*10+1) # :>8
-            oled.text(tempNode.title ,self.page.x+10,self.page.y+i*10+1)
+            oled.text(tempNode.title ,self.page.x+5,self.page.y+i*10+1)
             if i == self.page.selected:
-                oled.rect(self.page.x+7,self.page.y+self.page.selected*10,len(tempNode.title)*9,10)
+                oled.rect(self.page.x+2,self.page.y+self.page.selected*10,len(tempNode.title)*9,10)
             tempNode = tempNode.backward
     def moveUp(self):
         if(self.page.offset + self.page.selected <= 0):
@@ -109,24 +126,32 @@ class OptionsPage:
         return tempNode
     def OP_null(self):
         pass
+    def OP_returnPage(self):
+        self.page = Menu.page_Table.get(self.node.value,self.page)
     def OP_switchPage(self):
-        self.page = Menu.page_Table.get(self.node.value)
+        self.page = Menu.page_Table.get(self.node.value,self.page)
+        self.page.selected = 1
+        self.page.offset = 0
     def OP_modifyBool(self):
-        self.node.value =  (self.node.value+1)%2 # boundless(self.node.value,1,self.node.valueRange)
-    def OP_frontViewModifyNum(self):
-        Menu.display_Buf.append(FrontViewModifyNum(self.node))
+        self.node.value =  (self.node.value+1)%2 
+    def OP_modifyNumFV(self):
+        Menu.display_Buf.append(ModifyNumFV(self.node))
+    def OP_modifyChoiceFV(self):
+        self.node.value = boundless(self.node.value,self.node.incr,self.node.valueRange)
+    def OP_modifyStrKB(self):
+        ...
 class FV:
     '''use keyPad logic in update'''
     def click(self):
         Menu.frontViewExit()
-class FrontViewModifyNum(FV):
+class ModifyNumFV(FV):
     '''scale > 0.01 '''
     def __init__(self,node:Node) -> None:
         self.node = node
         self.x = 7
         self.y = 16
         self.incr = node.incr # 0.1 if isinstance(self.node.value,float) else 1
-        Menu.front_View_Length += 1        
+        Menu.FV_num += 1        
     def draw(self,oled):
         X = self.x+self.step
         Y = self.y+self.step
@@ -135,8 +160,8 @@ class FrontViewModifyNum(FV):
         oled.fill_rect(X,Y,114,32,0)
         oled.rect(X,Y,114,32)
         oled.rect(X+5,Y+16,104,8)
-        oled.fill_rect(X+5+2,Y+16+2,strip,4)
-        oled.text(self.node.title[:5],16+0,24-2) # :>7
+        oled.fill_rect(X+5+2,Y+16+2,int(strip),4)
+        oled.text(self.node.title[1:8],16+0,24-2) # :>7
         oled.text(str(self.node.value),88,24-2)
     def moveDown(self):
         self.node.value = boundary(self.node.value,self.incr*(-1),self.node.valueRange)
@@ -144,35 +169,39 @@ class FrontViewModifyNum(FV):
         self.node.value = boundary(self.node.value,self.incr*1,self.node.valueRange)
     @property
     def step(self):
-        return (Menu.front_View_Length - 1)*2
+        return (Menu.FV_num - 1)*2
 class Desc:
     NULL = const(0)
     PAGE = const(1)
     BOOL = const(2)
     NUM = const(3)
-    CHICO = const(4)
+    CHOICE = const(4)
+    STR = const(5)
     def __init__(self) -> None:
         self.node = None
         self.OP_valueDesc={
-            0x0:self.DESC_null,
-            0x1:self.DESC_page,
-            0x2:self.DESC_bool,
-            0x3:self.DESC_num,
-            0x4:self.DESC_chico
+            Desc.NULL:self.DESC_null,
+            Desc.PAGE:self.DESC_page,
+            Desc.BOOL:self.DESC_bool,
+            Desc.NUM:self.DESC_num,
+            Desc.CHOICE:self.DESC_choice,
+            Desc.STR:self.DESC_str,
         }
     def nodeDesc(self,node:Node):
         self.node = node
-        return self.OP_valueDesc[self.node.nodeType]()
+        return self.OP_valueDesc.get(self.node.nodeType)()
     def DESC_null(self):
         return ' '
+    def DESC_str(self):
+        return self.node.value
     def DESC_page(self):
         return '+'
     def DESC_bool(self):
         return ("OFF","ON")[self.node.value]
     def DESC_num(self):
         return str(self.node.value)
-    def DESC_chico(self):
-        return ("chico1","chico2","chico3")[(self.node.value-self.node.valueRange[0])//self.node.incr]
+    def DESC_choice(self):
+        return ("Small","Middle","Large")[self.node.value]  # [(self.node.value-self.node.valueRange[0])//self.node.incr]
 def timed_function(f,*args,**kwargs):
     name = str(f).split(' ')[1]
     def inner_func(*args,**kwargs):
@@ -185,9 +214,9 @@ def timed_function(f,*args,**kwargs):
 def boundary(value, incr, bound:tuple):
     lower_bound = bound[0]
     upper_bound = bound[1]
-    return min(upper_bound, max(lower_bound, value + incr))
-def boundless(value, incr, bound:tuple):
-    lower_bound = bound[0]
+    return min(upper_bound, max(lower_bound, round(value + incr,2)))    # 0.2+0.1=0.30000001
+def boundless(value, incr, bound:tuple):    # incr =1 %(0,10) out: normal
+    lower_bound = bound[0]                  # incr =2 %(0,10) out:0,2,4,6,8,10,1,3,5,7,9,0...
     upper_bound = bound[1]
     scope = upper_bound - lower_bound + 1
     value = value + incr

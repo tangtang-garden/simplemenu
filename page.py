@@ -20,7 +20,7 @@ class Page:
         self.width = width
         self.height = height
         self.linkList = LinkList()
-        self.selected = 0
+        self.selected = 1
         self.offset = 0
         Page.length += 1
 class LinkList:
