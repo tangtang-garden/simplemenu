@@ -73,6 +73,7 @@ class Menu:
         obj = cls.display_Buf.pop()
         cls.FV_num -= 1
         del obj
+        print(len(cls.display_Buf))
 class OptionsPage:
     def __init__(self,page:Page) -> None:
         self.page = page
@@ -83,7 +84,7 @@ class OptionsPage:
             Menu.SWITCH_PAGE:self.OP_switchPage,
             Menu.MODIFY_BOOL:self.OP_modifyBool,
             Menu.MODIFY_NUM_FV:self.OP_modifyNumFV,
-            Menu.MODIFY_CHOICE_FV:self.OP_modifyChoiceFV,
+            Menu.MODIFY_CHOICE_FV:self.OP_modifyChoice,
             Menu.MODIFY_STR:self.OP_modifyStrKB,
             Menu.RETURN_PAGE:self.OP_returnPage,
         }
@@ -136,22 +137,27 @@ class OptionsPage:
         self.node.value =  (self.node.value+1)%2 
     def OP_modifyNumFV(self):
         Menu.display_Buf.append(ModifyNumFV(self.node))
-    def OP_modifyChoiceFV(self):
+    def OP_modifyChoice(self):
         self.node.value = boundless(self.node.value,self.node.incr,self.node.valueRange)
     def OP_modifyStrKB(self):
-        ...
+        Menu.display_Buf.append(ModifyStrKB(self.node))
 class FV:
     '''use keyPad logic in update'''
+    def __init__(self) -> None:
+        Menu.FV_num += 1    
     def click(self):
         Menu.frontViewExit()
+    @property
+    def step(self):
+        return (Menu.FV_num - 1)*2
 class ModifyNumFV(FV):
     '''scale > 0.01 '''
     def __init__(self,node:Node) -> None:
+        super().__init__()
         self.node = node
         self.x = 7
         self.y = 16
-        self.incr = node.incr # 0.1 if isinstance(self.node.value,float) else 1
-        Menu.FV_num += 1        
+        self.incr = node.incr # 0.1 if isinstance(self.node.value,float) else 1    
     def draw(self,oled):
         X = self.x+self.step
         Y = self.y+self.step
@@ -167,9 +173,54 @@ class ModifyNumFV(FV):
         self.node.value = boundary(self.node.value,self.incr*(-1),self.node.valueRange)
     def moveUp(self):
         self.node.value = boundary(self.node.value,self.incr*1,self.node.valueRange)
-    @property
-    def step(self):
-        return (Menu.FV_num - 1)*2
+class ModifyStrKB(FV):
+    def __init__(self,node:Node) -> None:
+        super().__init__()
+        self.node = node
+        self.x = 4
+        self.y = 7
+        self.index = 0
+        self.cap = 32
+        self.letter = [49,50,51,52,53,54,55,56,57,48,45,60,
+                        81,87,69,82,84,89,85,73,79,80,94,
+                         65,83,68,70,71,72,74,75,76,46,
+                          90,88,67,86,66,78,77,62]
+        self.length = len(self.letter)
+    def draw(self,oled):
+        X = self.x+self.step
+        Y = self.y+self.step
+        oled.fill_rect(X,Y,120,50,0)
+        oled.rect(X,Y,120,50)
+        oled.text(self.node.value,(120-len(self.node.value)*8)//2+X,Y+5)
+        Y += 15
+        indent = 12
+        j=0
+        for i in range(self.length):
+            oled.text(chr(self.letter[i]),X+j*10+5*(12-indent),Y+8*(12-indent))
+            if self.index == i :
+                oled.rect(X+j*10+5*(12-indent)-1,Y+8*(12-indent)-1,10,10)
+            j += 1
+            if j // indent:
+                j=0
+                indent -= 1
+    def click(self):
+        if self.index == self.length -1:
+            Menu.frontViewExit()
+            return
+        if self.letter[self.index] == 94:
+            for item in range(12,self.length-1):
+                if self.letter[item] not in (94,46):
+                    self.letter[item] += self.cap
+            self.cap = self.cap*(-1)
+            return
+        if self.letter[self.index] == 60:
+            self.node.value = self.node.value[:-1]
+            return
+        self.node.value += chr(self.letter[self.index])
+    def moveDown(self):
+        self.index = boundless(self.index,1,(0,self.length-1))
+    def moveUp(self):
+        self.index = boundless(self.index,-1,(0,self.length-1))
 class Desc:
     NULL = const(0)
     PAGE = const(1)
